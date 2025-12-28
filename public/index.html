@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <title>Sistema Granja - POS</title>
+    <style>
+        /* Estilos Generales (CSS) */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+        
+        /* Tarjetas (Cajas blancas) */
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        /* Inputs y Botones */
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        input:focus { border-color: #27ae60; outline: none; }
+        
+        button { background-color: #2980b9; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; transition: background 0.3s; }
+        button:hover { background-color: #1f618d; }
+
+        /* Estilos específicos para el Escáner */
+        .scanner-section { border-top: 5px solid #27ae60; }
+        #resultado { margin-top: 20px; text-align: center; padding: 20px; background-color: #e8f8f5; border-radius: 8px; display: none; }
+        .precio-grande { font-size: 4em; color: #27ae60; font-weight: bold; margin: 10px 0; }
+        .nombre-producto { font-size: 1.5em; font-weight: bold; color: #555; }
+        
+        /* Estilos para el formulario de agregar */
+        .admin-section { border-top: 5px solid #e67e22; }
+        .feedback { text-align: center; margin-top: 10px; font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+    
+    /* --- ESTILOS DEL MENÚ DE NAVEGACIÓN --- */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #2c3e50; /* Azul oscuro elegante */
+            padding: 0 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 20px;
+        }
+
+        .brand {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links {
+            display: flex;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: #ecf0f1;
+            padding: 20px 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-btn:hover {
+            background-color: #34495e;
+            color: #27ae60; /* Verde al pasar el mouse */
+        }
+
+        .nav-btn.active {
+            border-bottom: 4px solid #27ae60;
+            background-color: #34495e;
+            font-weight: bold;
+        }
+
+        /* Ocultar secciones por defecto */
+        .seccion-contenido {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        
+        /* Animación suave al cambiar de pestaña */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- ESTILOS DEL PUNTO DE VENTA (SUPERMERCADO) --- */
+        .pos-container {
+            display: grid;
+            grid-template-columns: 3fr 1fr; /* 70% Lista - 30% Totales */
+            gap: 20px;
+        }
+
+        .pos-header {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .total-box {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            position: sticky;
+            top: 20px; /* Para que te siga si bajas */
+        }
+
+        .total-label { font-size: 1.2em; opacity: 0.8; }
+        .total-amount { font-size: 3em; font-weight: bold; color: #27ae60; margin: 10px 0; }
+        
+        .btn-procesar {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .btn-procesar:hover { background-color: #219150; }
+
+        /* Ajuste para móviles: Que se ponga una cosa abajo de otra */
+        @media (max-width: 768px) {
+            .pos-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+        
+        <nav class="navbar">
+            <div class="brand">Sistema Comercio - POS 💵</div>
+            <div class="nav-links">
+                <button class="nav-btn active" onclick="cambiarPestaña('caja', this)">🛒 Caja</button>
+                <button class="nav-btn" onclick="cambiarPestaña('inventario', this)">📦 Inventario</button>
+                <button class="nav-btn" onclick="cambiarPestaña('clientes', this)">👥 Clientes</button>
+                <button class="nav-btn" onclick="cambiarPestaña('proveedores', this)">🚛 Proveedores</button>
+            <button class="nav-btn" onclick="cambiarPestaña('reportes', this)">📊 Reportes</button>
+            </div>
+        </nav>
+
+        <div id="caja" class="seccion-contenido" style="display: block;">
+            
+            <div class="pos-header">
+                <div style="flex: 1;">
+                    <small>👤 Cliente (Cédula):</small>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" id="ventaCedula" placeholder="Consumidor Final" onchange="buscarClienteParaVenta()">
+                        <input type="text" id="ventaNombre" placeholder="Nombre del Cliente" disabled style="background: #fff; font-weight: bold;">
+                    </div>
+                </div>
+                <div style="flex: 2;">
+                    <small>🛒 Escanear Producto:</small>
+                    <input type="text" id="inputScanner" placeholder="Pasa el producto aquí..." autofocus autocomplete="off">
+                </div>
+            </div>
+
+            <div class="pos-container">
+                <div class="card" style="margin: 0; min-height: 400px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8f9fa; border-bottom: 2px solid #ddd;">
+                                <th style="padding:10px; text-align: left;">Cant.</th>
+                                <th style="padding:10px; text-align: left;">Producto</th>
+                                <th style="padding:10px; text-align: right;">Precio</th>
+                                <th style="padding:10px; text-align: right;">Subtotal</th>
+                                <th style="padding:10px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaCarrito">
+                            </tbody>
+                    </table>
+                    <div id="mensajeVacio" style="text-align: center; color: #aaa; margin-top: 50px;">
+                        <h3>🛒 El carrito está vacío</h3>
+                        <p>Escanea un producto para comenzar</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="total-box">
+                        <div class="total-label">Total a Pagar</div>
+                        <div class="total-amount" id="lblTotal">$0.00</div>
+                        <hr style="border-color: #ffffff30;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Subtotal:</span> <span id="lblSubtotal">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>IVA (Exento):</span> <span>$0.00</span>
+                        </div>
+                        
+                        <button class="btn-procesar" onclick="procesarVenta()">💰 COBRAR</button>
+                        <button onclick="cancelarVenta()" style="background: #c0392b; width: 100%; padding: 10px; margin-top: 10px; border:none; color:white; border-radius:8px; cursor:pointer;">❌ Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="inventario" class="seccion-contenido">
+            <div class="card admin-section">
+                <h2>📦 Gestión de Inventario</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <input type="text" id="newCodigo" placeholder="Código de Barras">
+                    <input type="number" id="newPrecio" placeholder="Precio ($)">
+                    <input type="number" id="newStock" placeholder="Stock Inicial">
+                </div>
+                <input type="text" id="newNombre" placeholder="Nombre del Producto">
+                <button onclick="guardarProducto()">Guardar Producto</button>
+                <div id="msgGuardar" class="feedback"></div>
+            </div>
+
+            <div class="card">
+                <h3>📋 Lista de Productos</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa; text-align: left;">
+                            <th style="padding: 10px;">Código</th>
+                            <th style="padding: 10px;">Producto</th>
+                            <th style="padding: 10px;">Precio</th>
+                            <th style="padding: 10px;">Stock</th>
+                            <th style="padding: 10px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaProductos">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="clientes" class="seccion-contenido">
+            
+            <div class="card admin-section" style="border-top-color: #8e44ad;"> <h2>👥 Registrar Nuevo Cliente</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="text" id="cliCedula" placeholder="Cédula (V-12345678)">
+                    <input type="text" id="cliTelefono" placeholder="Teléfono (0414-...)">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="text" id="cliNombre" placeholder="Nombre">
+                    <input type="text" id="cliApellido" placeholder="Apellido">
+                </div>
+                <input type="text" id="cliCiudad" placeholder="Ciudad / Dirección (Opcional)">
+                
+                <button onclick="guardarCliente()" style="background-color: #8e44ad;">Guardar Cliente</button>
+            </div>
+
+            <div class="card">
+                <h3>Directorio de Clientes</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa; text-align: left;">
+                            <th style="padding: 10px;">Cédula</th>
+                            <th style="padding: 10px;">Nombre Completo</th>
+                            <th style="padding: 10px;">Teléfono</th>
+                            <th style="padding: 10px;">Ciudad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaClientes">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+<div id="proveedores" class="seccion-contenido">
+            
+            <div class="card admin-section" style="border-top-color: #d35400;"> <h2>🚛 Registrar Proveedor</h2>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+                    <input type="text" id="provRif" placeholder="RIF (J-12345678)">
+                    <input type="text" id="provNombre" placeholder="Nombre de la Empresa">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="text" id="provCategoria" placeholder="Categoría (Ej: Alimentos, Medicinas)">
+                    <input type="text" id="provTelefono" placeholder="Teléfono de Contacto">
+                </div>
+                <input type="text" id="provDireccion" placeholder="Dirección / Ubicación">
+                
+                <button onclick="guardarProveedor()" style="background-color: #d35400;">Guardar Proveedor</button>
+            </div>
+
+            <div class="card">
+                <h3>Directorio de Proveedores</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa; text-align: left;">
+                            <th style="padding: 10px;">RIF</th>
+                            <th style="padding: 10px;">Empresa</th>
+                            <th style="padding: 10px;">Rubro</th>
+                            <th style="padding: 10px;">Teléfono</th>
+                            <th style="padding: 10px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaProveedores">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="reportes" class="seccion-contenido">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>📊 Historial de Ventas</h2>
+                    <button onclick="cargarReportes()" style="width: auto; background: #2c3e50; padding: 10px 15px;">🔄 Actualizar</button>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <thead>
+                        <tr style="background-color: #2c3e50; color: white; text-align: left;">
+                            <th style="padding: 10px;">Fecha / Hora</th>
+                            <th style="padding: 10px;">Cliente</th>
+                            <th style="padding: 10px;">Cant. Productos</th>
+                            <th style="padding: 10px; text-align: right;">Total Venta</th>
+                            <th style="padding: 10px; text-align: center;">Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaVentas">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+<script>
+        const API_URL = '/api/productos';
+// --- VARIABLES GLOBALES DEL POS ---
+        let carrito = []; // Aquí guardaremos la lista de compras
+        let clienteActual = null; // Aquí guardaremos si alguien se identificó
+        let idProductoAEditar = null;
+        // 1. ESCÁNER (MODO CARRITO)
+        const inputScanner = document.getElementById('inputScanner');
+        
+        inputScanner.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                const codigo = inputScanner.value.trim();
+                if (!codigo) return;
+                
+                // Buscamos el producto en el Backend
+                try {
+                    const res = await fetch(`${API_URL}/${codigo}`);
+                    const producto = await res.json();
+
+                    if (res.ok) {
+                        agregarAlCarrito(producto);
+                    } else {
+                        // Sonido de error o alerta
+                        const audio = new Audio('https://www.myinstants.com/media/sounds/error.mp3'); // Opcional
+                        // audio.play().catch(e => null); 
+                        Swal.fire({ 
+                            icon: 'error', 
+                            title: 'No encontrado', 
+                            text: `El código ${codigo} no existe`,
+                            timer: 1000, showConfirmButton: false 
+                        });
+                    }
+                } catch (error) { console.error(error); }
+
+                inputScanner.value = ''; // Limpiar input
+                inputScanner.focus();    // Mantener foco
+            }
+        });
+
+        // 2. FUNCIÓN AGREGAR AL CARRITO
+        function agregarAlCarrito(producto) {
+            // Verificar si hay stock (Validación visual)
+            if(producto.stock <= 0) {
+                 Swal.fire({ icon: 'warning', title: 'Sin Stock', text: 'Este producto está agotado', timer: 1500 });
+                 return;
+            }
+
+            // Verificar si ya está en el carrito para sumar cantidad
+            const existe = carrito.find(item => item._id === producto._id);
+
+            if (existe) {
+                // Si ya está, revisamos si no nos pasamos del stock
+                if(existe.cantidad + 1 > producto.stock) {
+                    Swal.fire({ icon: 'warning', title: 'Stock Máximo', text: 'No tienes más unidades disponibles' });
+                    return;
+                }
+                existe.cantidad++;
+            } else {
+                // Si es nuevo, lo agregamos con cantidad 1
+                carrito.push({
+                    _id: producto._id,
+                    codigoBarras: producto.codigoBarras,
+                    nombre: producto.nombre,
+                    precio: producto.precio,
+                    cantidad: 1,
+                    stockMaximo: producto.stock // Guardamos esto para no vender de más
+                });
+            }
+            renderizarCarrito();
+        }
+
+        // 3. DIBUJAR LA TABLA DEL CARRITO
+        function renderizarCarrito() {
+            const tbody = document.getElementById('tablaCarrito');
+            const mensajeVacio = document.getElementById('mensajeVacio');
+            tbody.innerHTML = '';
+
+            if (carrito.length === 0) {
+                mensajeVacio.style.display = 'block';
+                actualizarTotales();
+                return;
+            }
+            mensajeVacio.style.display = 'none';
+
+            carrito.forEach((item, index) => {
+                const subtotal = item.precio * item.cantidad;
+                tbody.innerHTML += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding:10px;">
+                            <button onclick="cambiarCantidad(${index}, -1)" style="padding:2px 6px;">-</button>
+                            <b>${item.cantidad}</b>
+                            <button onclick="cambiarCantidad(${index}, 1)" style="padding:2px 6px;">+</button>
+                        </td>
+                        <td style="padding:10px;">${item.nombre}</td>
+                        <td style="padding:10px; text-align: right;">$${item.precio}</td>
+                        <td style="padding:10px; text-align: right; font-weight:bold;">$${subtotal.toFixed(2)}</td>
+                        <td style="padding:10px; text-align: center;">
+                            <button onclick="eliminarDelCarrito(${index})" style="background:#e74c3c; color:white; border:none; padding:5px; border-radius:4px; cursor:pointer;">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            actualizarTotales();
+        }
+
+        // 4. CAMBIAR CANTIDAD (+ / -)
+        function cambiarCantidad(index, delta) {
+            const item = carrito[index];
+            const nuevaCantidad = item.cantidad + delta;
+
+            if (nuevaCantidad > item.stockMaximo) {
+                 Swal.fire({ icon: 'warning', title: 'Stock Insuficiente', timer: 1000, showConfirmButton: false });
+                 return;
+            }
+            if (nuevaCantidad < 1) return; // No bajar de 1
+
+            item.cantidad = nuevaCantidad;
+            renderizarCarrito();
+        }
+
+        // 5. ELIMINAR FILA
+        function eliminarDelCarrito(index) {
+            carrito.splice(index, 1);
+            renderizarCarrito();
+        }
+
+        // 6. ACTUALIZAR NUMEROS GRANDES
+        function actualizarTotales() {
+            const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+            document.getElementById('lblTotal').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('lblSubtotal').innerText = `$${total.toFixed(2)}`;
+        }
+
+        // 7. BUSCAR CLIENTE RÁPIDO (Caja)
+        async function buscarClienteParaVenta() {
+            const cedula = document.getElementById('ventaCedula').value;
+            if(!cedula) {
+                clienteActual = null;
+                document.getElementById('ventaNombre').value = "";
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/clientes/${cedula}`);
+                if(res.ok) {
+                    clienteActual = await res.json();
+                    document.getElementById('ventaNombre').value = `${clienteActual.nombre} ${clienteActual.apellido}`;
+                    document.getElementById('ventaNombre').style.color = "green";
+                } else {
+                    clienteActual = null;
+                    document.getElementById('ventaNombre').value = "Cliente No Registrado";
+                    document.getElementById('ventaNombre').style.color = "red";
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        // 8. PROCESAR VENTA FINAL (ENVIAR AL BACKEND)
+        async function procesarVenta() {
+            if (carrito.length === 0) {
+                Swal.fire('Carrito Vacío', 'Escanea productos antes de cobrar', 'warning');
+                return;
+            }
+
+            // Calculamos el total final
+            const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+
+            // Preparamos los datos para el servidor
+            const ventaDatos = {
+                cliente: clienteActual ? { nombre: clienteActual.nombre, cedula: clienteActual.cedula } : null,
+                items: carrito.map(item => ({
+                    productoId: item._id,
+                    codigo: item.codigoBarras,
+                    nombre: item.nombre,
+                    precio: item.precio,
+                    cantidad: item.cantidad,
+                    subtotal: item.precio * item.cantidad
+                })),
+                total: total
+            };
+
+            // Enviamos
+            try {
+                const res = await fetch('/api/ventas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ventaDatos)
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Venta Exitosa!',
+                        text: `Total cobrado: $${total.toFixed(2)}`,
+                    });
+                    cancelarVenta(); // Limpiamos todo
+                    cargarInventario(); // Actualizamos stock en las otras pestañas
+                } else {
+                    const errorData = await res.json();
+                    Swal.fire('Error', errorData.error, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Fallo de conexión', 'error');
+            }
+        }
+
+        // 9. CANCELAR / LIMPIAR
+        function cancelarVenta() {
+            carrito = [];
+            clienteActual = null;
+            document.getElementById('ventaCedula').value = '';
+            document.getElementById('ventaNombre').value = '';
+            renderizarCarrito();
+            document.getElementById('inputScanner').focus();
+        }
+
+        function cambiarPestaña(idSeccion, btn) {
+            // 1. Ocultar todas las secciones
+            document.querySelectorAll('.seccion-contenido').forEach(seccion => {
+                seccion.style.display = 'none';
+            });
+
+            // 2. Quitar la clase 'active' de todos los botones
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('active');
+            });
+
+            // 3. Mostrar la sección elegida
+            document.getElementById(idSeccion).style.display = 'block';
+
+            // 4. Activar el botón presionado
+            btn.classList.add('active');
+
+            // Truco de UX: Si voy a Caja, pongo el foco en el scanner automáticamente
+            if(idSeccion === 'caja') {
+                setTimeout(() => document.getElementById('inputScanner').focus(), 100);
+            }
+        }
+
+// ==========================================
+        // 📦 LÓGICA DE INVENTARIO (RESTAURADA)
+        // ==========================================
+
+        // 10. GUARDAR O ACTUALIZAR PRODUCTO
+        async function guardarProducto() {
+            const codigo = document.getElementById('newCodigo').value;
+            const nombre = document.getElementById('newNombre').value;
+            const precio = document.getElementById('newPrecio').value;
+            const stock = document.getElementById('newStock').value; 
+            const feedback = document.getElementById('msgGuardar');
+
+            if (!codigo || !nombre || !precio || !stock) {
+                Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Todos los campos son obligatorios', timer: 1500, showConfirmButton: false });
+                return;
+            }
+
+            let url = API_URL;
+            let metodo = 'POST';
+
+            if (idProductoAEditar) {
+                url = `${API_URL}/${idProductoAEditar}`;
+                metodo = 'PUT';
+            }
+
+            try {
+                const respuesta = await fetch(url, {
+                    method: metodo,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        codigoBarras: codigo, 
+                        nombre: nombre, 
+                        precio: Number(precio),
+                        stock: Number(stock)
+                    })
+                });
+
+                if (respuesta.ok) {
+                    Swal.fire({
+                        position: 'top-end',
+                        icon: 'success',
+                        title: idProductoAEditar ? 'Actualizado' : 'Guardado',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                    limpiarFormulario();
+                    cargarInventario();
+                } else {
+                    const data = await respuesta.json();
+                    Swal.fire('Error', data.error || 'No se pudo guardar', 'error');
+                }
+            } catch (error) { 
+                console.error(error);
+                Swal.fire('Error', 'Fallo de conexión', 'error'); 
+            }
+        }
+
+        // 11. CARGAR TABLA DE INVENTARIO
+        async function cargarInventario() {
+            try {
+                const res = await fetch(API_URL);
+                const productos = await res.json();
+                const tbody = document.getElementById('tablaProductos');
+                
+                // Asegurar encabezado de Stock (Truco para que no se duplique)
+                const thead = document.querySelector('#inventario thead tr');
+                if(thead && thead.children.length === 4) { 
+                     const thStock = document.createElement('th');
+                     thStock.innerText = "Stock";
+                     thStock.style = "padding: 10px; border-bottom: 2px solid #ddd;";
+                     thead.insertBefore(thStock, thead.lastElementChild); 
+                }
+
+                tbody.innerHTML = '';
+                
+                productos.forEach(prod => {
+                    const colorStock = prod.stock < 5 ? 'red' : 'black';
+                    const alertaStock = prod.stock < 5 ? '⚠️' : '';
+
+                    const fila = `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px;"><b>${prod.codigoBarras}</b></td>
+                            <td style="padding: 10px;">${prod.nombre}</td>
+                            <td style="padding: 10px;">$${prod.precio}</td>
+                            <td style="padding: 10px; color: ${colorStock}; font-weight: bold;">
+                                ${prod.stock} ${alertaStock}
+                            </td>
+                            <td style="padding: 10px;">
+                                <button onclick="prepararEdicion('${prod._id}', '${prod.codigoBarras}', '${prod.nombre}', '${prod.precio}', '${prod.stock}')" style="background: #f39c12; width: auto; padding: 5px 10px; margin-right: 5px;">✏️</button>
+                                <button onclick="eliminar('${prod._id}')" style="background: #e74c3c; width: auto; padding: 5px 10px;">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += fila;
+                });
+            } catch (error) { console.error("Error cargando inventario"); }
+        }
+
+        // 12. PREPARAR EDICIÓN
+        function prepararEdicion(id, codigo, nombre, precio, stock) {
+            idProductoAEditar = id;
+            document.getElementById('newCodigo').value = codigo;
+            document.getElementById('newNombre').value = nombre;
+            document.getElementById('newPrecio').value = precio;
+            document.getElementById('newStock').value = stock;
+            
+            const btn = document.querySelector('button[onclick="guardarProducto()"]');
+            btn.innerText = "🔄 Actualizar Producto";
+            btn.style.backgroundColor = "#f39c12"; 
+            document.querySelector('.admin-section').scrollIntoView({behavior: 'smooth'});
+        }
+
+        // 13. LIMPIAR FORMULARIO
+        function limpiarFormulario() {
+            document.getElementById('newCodigo').value = '';
+            document.getElementById('newNombre').value = '';
+            document.getElementById('newPrecio').value = '';
+            document.getElementById('newStock').value = '';
+            idProductoAEditar = null;
+            const btn = document.querySelector('button[onclick="guardarProducto()"]');
+            btn.innerText = "Guardar Producto";
+            btn.style.backgroundColor = "#2980b9";
+        }
+
+        // 14. ELIMINAR PRODUCTO
+        function eliminar(id) {
+            Swal.fire({
+                title: '¿Borrar?', text: "No se puede recuperar", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, borrar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                    Swal.fire('Borrado', '', 'success');
+                    cargarInventario();
+                }
+            })
+        }
+
+        // --- LÓGICA DE CLIENTES ---
+
+        // 1. GUARDAR CLIENTE
+        async function guardarCliente() {
+            const cedula = document.getElementById('cliCedula').value;
+            const nombre = document.getElementById('cliNombre').value;
+            const apellido = document.getElementById('cliApellido').value;
+            const telefono = document.getElementById('cliTelefono').value;
+            const ciudad = document.getElementById('cliCiudad').value;
+
+            if (!cedula || !nombre || !apellido) {
+                Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Cédula, Nombre y Apellido son obligatorios' });
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/clientes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cedula, nombre, apellido, telefono, ciudad })
+                });
+
+                if (res.ok) {
+                    Swal.fire({ icon: 'success', title: 'Cliente Registrado', showConfirmButton: false, timer: 1500 });
+                    // Limpiar campos
+                    document.getElementById('cliCedula').value = '';
+                    document.getElementById('cliNombre').value = '';
+                    document.getElementById('cliApellido').value = '';
+                    document.getElementById('cliTelefono').value = '';
+                    document.getElementById('cliCiudad').value = '';
+                    
+                    cargarClientes(); // Actualizar tabla
+                } else {
+                    const data = await res.json();
+                    Swal.fire('Error', data.error || 'No se pudo guardar', 'error');
+                }
+            } catch (error) { Swal.fire('Error', 'Fallo de conexión', 'error'); }
+        }
+
+        // 2. CARGAR TABLA DE CLIENTES
+// 2. CARGAR TABLA DE CLIENTES (CON BOTÓN ELIMINAR)
+        async function cargarClientes() {
+            try {
+                const res = await fetch('/api/clientes');
+                const clientes = await res.json();
+                
+                const tbody = document.getElementById('tablaClientes');
+                tbody.innerHTML = '';
+
+                clientes.forEach(cli => {
+                    const fila = `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px; font-weight: bold;">${cli.cedula}</td>
+                            <td style="padding: 10px;">${cli.nombre} ${cli.apellido}</td>
+                            <td style="padding: 10px;">${cli.telefono}</td>
+                            <td style="padding: 10px; color: #7f8c8d;">${cli.ciudad}</td>
+                            <td style="padding: 10px;">
+                                <button onclick="eliminarCliente('${cli._id}')" style="background: #e74c3c; width: auto; padding: 5px 10px;">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += fila;
+                });
+            } catch (error) { console.error("Error cargando clientes"); }
+        }
+
+        // 3. ELIMINAR CLIENTE
+        function eliminarCliente(id) {
+            Swal.fire({
+                title: '¿Eliminar Cliente?',
+                text: "Se borrará de la base de datos.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Sí, borrar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
+                    Swal.fire('Eliminado', '', 'success');
+                    cargarClientes();
+                }
+            })
+        }
+
+        // --- LÓGICA DE PROVEEDORES ---
+
+        // 1. GUARDAR PROVEEDOR
+        async function guardarProveedor() {
+            const rif = document.getElementById('provRif').value;
+            const nombreEmpresa = document.getElementById('provNombre').value;
+            const categoria = document.getElementById('provCategoria').value;
+            const telefono = document.getElementById('provTelefono').value;
+            const direccion = document.getElementById('provDireccion').value;
+
+            if (!rif || !nombreEmpresa || !categoria) {
+                Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'RIF, Nombre y Categoría son obligatorios' });
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/proveedores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rif, nombreEmpresa, categoria, telefono, direccion })
+                });
+
+                if (res.ok) {
+                    Swal.fire({ icon: 'success', title: 'Proveedor Registrado', showConfirmButton: false, timer: 1500 });
+                    // Limpiar
+                    document.getElementById('provRif').value = '';
+                    document.getElementById('provNombre').value = '';
+                    document.getElementById('provCategoria').value = '';
+                    document.getElementById('provTelefono').value = '';
+                    document.getElementById('provDireccion').value = '';
+                    
+                    cargarProveedores();
+                } else {
+                    const data = await res.json();
+                    Swal.fire('Error', data.error || 'No se pudo guardar', 'error');
+                }
+            } catch (error) { Swal.fire('Error', 'Fallo de conexión', 'error'); }
+        }
+
+        // 2. CARGAR TABLA
+        async function cargarProveedores() {
+            try {
+                const res = await fetch('/api/proveedores');
+                const proveedores = await res.json();
+                
+                const tbody = document.getElementById('tablaProveedores');
+                tbody.innerHTML = '';
+
+                proveedores.forEach(prov => {
+                    const fila = `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px; font-weight: bold;">${prov.rif}</td>
+                            <td style="padding: 10px;">${prov.nombreEmpresa}</td>
+                            <td style="padding: 10px;"><span style="background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 12px;">${prov.categoria}</span></td>
+                            <td style="padding: 10px;">${prov.telefono}</td>
+                            <td style="padding: 10px;">
+                                <button onclick="eliminarProveedor('${prov._id}')" style="background: #e74c3c; width: auto; padding: 5px 10px;">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += fila;
+                });
+            } catch (error) { console.error("Error cargando proveedores"); }
+        }
+
+        // 3. ELIMINAR PROVEEDOR
+        function eliminarProveedor(id) { // Solo necesitamos la ruta de eliminar en index.js si quieres habilitar esto
+            Swal.fire({
+                title: '¿Eliminar Proveedor?',
+                text: "Se borrará del directorio.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Sí, borrar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    // Nota: Asegúrate de tener la ruta app.delete('/api/proveedores/:id') en tu index.js
+                    // Si no la tienes, agrégala rápido en el backend igual que hicimos con clientes.
+                    await fetch(`/api/proveedores/${id}`, { method: 'DELETE' }); 
+                    Swal.fire('Eliminado', '', 'success');
+                    cargarProveedores();
+                }
+            })
+        }
+
+        // --- LÓGICA DE REPORTES ---
+
+        let ventasCache = []; // Para guardar las ventas y ver detalles sin recargar
+
+        // 1. CARGAR LISTA DE VENTAS
+        async function cargarReportes() {
+            try {
+                const res = await fetch('/api/ventas');
+                ventasCache = await res.json(); // Guardamos en memoria
+                
+                const tbody = document.getElementById('tablaVentas');
+                tbody.innerHTML = '';
+
+                if(ventasCache.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No hay ventas registradas aún.</td></tr>';
+                    return;
+                }
+
+                ventasCache.forEach((venta, index) => {
+                    // Formatear fecha bonita
+                    const fecha = new Date(venta.fecha).toLocaleString();
+                    const nombreCliente = venta.cliente ? venta.cliente.nombre : "Cliente Anónimo";
+                    const cantidadItems = venta.items.length;
+
+                    const fila = `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px;">${fecha}</td>
+                            <td style="padding: 10px;"><b>${nombreCliente}</b></td>
+                            <td style="padding: 10px; text-align: center;">${cantidadItems} ítems</td>
+                            <td style="padding: 10px; text-align: right; color: green; font-weight: bold;">$${venta.totalVenta.toFixed(2)}</td>
+                            <td style="padding: 10px; text-align: center;">
+                                <button onclick="verDetalleVenta(${index})" style="background: #3498db; width: auto; padding: 5px 10px; font-size: 12px;">👁️ Ver Factura</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += fila;
+                });
+            } catch (error) { console.error("Error cargando reportes"); }
+        }
+
+        // 2. VER DETALLE DE UNA VENTA (FACTURA MODAL)
+        function verDetalleVenta(index) {
+            const venta = ventasCache[index];
+            const fecha = new Date(venta.fecha).toLocaleString();
+
+            // Construimos una tablita HTML pequeña para mostrar dentro de la alerta
+            let htmlDetalle = `
+                <div style="text-align: left; font-size: 14px;">
+                    <p><b>Fecha:</b> ${fecha}</p>
+                    <p><b>Cliente:</b> ${venta.cliente.nombre} (${venta.cliente.cedula})</p>
+                    <hr>
+                    <table style="width:100%; font-size: 13px;">
+                        <tr style="background:#eee;">
+                            <th style="text-align:left;">Prod.</th>
+                            <th style="text-align:center;">Cant.</th>
+                            <th style="text-align:right;">Sub.</th>
+                        </tr>
+            `;
+
+            venta.items.forEach(item => {
+                htmlDetalle += `
+                    <tr>
+                        <td>${item.nombre}</td>
+                        <td style="text-align:center;">${item.cantidad}</td>
+                        <td style="text-align:right;">$${(item.precio * item.cantidad).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            htmlDetalle += `
+                    </table>
+                    <hr>
+                    <h2 style="text-align:right; color:green;">Total: $${venta.totalVenta.toFixed(2)}</h2>
+                </div>
+            `;
+
+            // Mostramos la alerta con el HTML adentro
+            Swal.fire({
+                title: '🧾 Detalle de Venta',
+                html: htmlDetalle,
+                width: '400px',
+                confirmButtonText: 'Cerrar'
+            });
+        }
+
+        // Inicio
+        cargarInventario();
+        cargarClientes();
+        cargarProveedores();
+        cargarReportes();
+    </script>
+</body>
+</html>
