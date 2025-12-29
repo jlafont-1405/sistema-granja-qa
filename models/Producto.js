@@ -16,8 +16,10 @@ const productoSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  stock: {
+stock: {
     type: Number,
+    required: true,
+    min: 0, // <--- ESTA LÍNEA ES EL ESCUDO FINAL
     default: 0
   },
   fechaCreacion: {

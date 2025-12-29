@@ -24,6 +24,7 @@ if (process.env.NODE_ENV !== 'test') {
     .then(() => console.log('✅ Conexión exitosa a MongoDB (Local)'))
     .catch((err) => console.error('❌ Error al conectar a MongoDB:', err));
 }
+
 // --- RUTAS DE LA API (Los endpoints) ---
 
 // 1. RUTA PARA GUARDAR UN NUEVO PRODUCTO
@@ -275,30 +276,41 @@ app.delete('/api/proveedores/:id', async (req, res) => {
 // 🛒 GESTIÓN DE VENTAS (FACTURACIÓN)
 // ==========================================
 
-// 13. PROCESAR UNA VENTA COMPLETA (CARRITO)
+// 13. PROCESAR UNA VENTA (VERSIÓN BLINDADA v2)
 app.post('/api/ventas', async (req, res) => {
   const { cliente, items, total } = req.body;
 
   try {
-    // PASO 1: Verificación de Stock (Antes de vender, revisamos si hay de todo)
+    const productosRestados = [];
+    let errorStock = null;
+
+    // INTENTO DE RESTA ATÓMICA
     for (const item of items) {
-      const productoDb = await Producto.findById(item.productoId);
-      if (!productoDb || productoDb.stock < item.cantidad) {
-        return res.status(400).json({ 
-          error: `Stock insuficiente para: ${item.nombre}. Quedan: ${productoDb ? productoDb.stock : 0}` 
-        });
+      // Intentamos restar SOLO SI el stock es suficiente (atomicity)
+      const resultado = await Producto.updateOne(
+        { _id: item.productoId, stock: { $gte: item.cantidad } }, 
+        { $inc: { stock: -item.cantidad } }
+      );
+
+      console.log(`Intento de venta para ${item.nombre}:`, resultado); // <--- DEBUG
+
+      if (resultado.modifiedCount > 0) {
+        productosRestados.push(item); // Éxito
+      } else {
+        errorStock = `Stock insuficiente para: ${item.nombre}`;
+        break; // Freno de emergencia
       }
     }
 
-    // PASO 2: Restar Inventario y Guardar
-    // Si llegamos aquí, es porque SI hay stock de todo. Procedemos.
-    for (const item of items) {
-      await Producto.findByIdAndUpdate(item.productoId, { 
-        $inc: { stock: -item.cantidad } // $inc significa "incrementar" (usamos negativo para restar)
-      });
+    // SI ALGO FALLÓ, DEVOLVEMOS LO QUE YA HABÍAMOS RESTADO (ROLLBACK)
+    if (errorStock) {
+      for (const item of productosRestados) {
+        await Producto.findByIdAndUpdate(item.productoId, { $inc: { stock: item.cantidad } });
+      }
+      return res.status(400).json({ error: errorStock });
     }
 
-    // PASO 3: Guardar la Factura en el Historial
+    // GUARDAR VENTA
     const nuevaVenta = new Venta({
       cliente: cliente || { nombre: "Consumidor Final", cedula: "N/A" },
       items: items,
@@ -306,12 +318,11 @@ app.post('/api/ventas', async (req, res) => {
     });
 
     await nuevaVenta.save();
-
     res.status(201).json({ mensaje: '¡Venta procesada con éxito!', venta: nuevaVenta });
 
   } catch (error) {
-    console.error("Error en venta:", error);
-    res.status(500).json({ error: 'Error al procesar la venta' });
+    console.error("Error crítico:", error);
+    res.status(500).json({ error: 'Error interno' });
   }
 });
 
