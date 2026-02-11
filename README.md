@@ -1,36 +1,31 @@
-🚜 Granja - POS & Inventory System
-Sistema integral de Punto de Venta (POS) y Gestión de Inventario diseñado bajo una arquitectura SPA (Single Page Application) para una distribuidora de insumos agrícolas. El sistema prioriza la velocidad de atención en caja mediante la integración de hardware HID (lectores de códigos de barra).
+# 🚜 Granja - POS & Inventory System
 
-🛠️ Stack Tecnológico (MEVN Lite)
-Backend: Node.js con Express (Arquitectura No-bloqueante).
+Sistema integral de Punto de Venta (POS) y Gestión de Inventario diseñado para una distribuidora de insumos agrícolas. El proyecto utiliza una arquitectura **SPA (Single Page Application)** para garantizar una experiencia fluida y rápida, ideal para la atención directa al cliente.
 
-Base de Datos: MongoDB con Mongoose como ODM para validación de esquemas.
+## 🛠️ Stack Tecnológico (MEVN Lite)
+* **Backend:** Node.js con Express, utilizando una arquitectura de E/S no bloqueante (Event Loop).
+* **Base de Datos:** MongoDB (NoSQL) para una gestión flexible de productos y ventas.
+* **ODM:** Mongoose para la definición estricta de esquemas y validación de integridad de datos.
+* **Frontend:** HTML5, CSS3 y Vanilla JavaScript (ES6+) para mantener el sistema ligero y eficiente.
+* **Testing:** Suite de pruebas automatizadas con **Jest** y **Supertest**.
 
-Frontend: HTML5, CSS3 (Grid/Flexbox) y Vanilla JavaScript (ES6+) para una carga ultraligera.
+## ✨ Funcionalidades Principales
+* **Módulo POS (Punto de Venta):** Interfaz optimizada para lectores de códigos de barra (HID) con carga asíncrona de productos.
+* **Gestión Transaccional:** Uso de estados locales (carrito en memoria) y cálculos automáticos de totales y tributos antes de facturar.
+* **Integración de Actores:** CRUD completo para la gestión de Clientes y Proveedores con índices únicos para evitar duplicidad.
+* **Lógica de Inventario:** Descuento automático de stock mediante operaciones atómicas (`$inc`) en la base de datos.
+* **Auditoría de Ventas:** Registro histórico desnormalizado para preservar la integridad de los precios al momento de la venta.
 
-Testing: Suite de pruebas automatizadas con Jest y Supertest.
+## 🛡️ Calidad de Software (Testing)
+El sistema implementa pruebas unitarias e integración para asegurar que los endpoints críticos (ventas, productos, clientes) funcionen correctamente.
+* **Ambientes Separados:** Uso de `cross-env` para trabajar en un entorno de pruebas aislado, protegiendo la base de datos de producción.
+* **Simulación de Clientes:** Implementación de Supertest para simular peticiones HTTP y validar códigos de estado (200, 201, 404).
 
-✨ Funcionalidades Clave
-Facturación Transaccional: Módulo de "Caja" basado en estados locales (carrito en memoria) para cálculos instantáneos antes de la persistencia.
+## 🚀 Instalación y Ejecución
+1. **Clonar el repositorio:** `git clone https://github.com/jlafont-1405/sistema-granja.git`
+2. **Instalar dependencias:** `yarn install`
+3. **Modo Desarrollo:** `yarn dev` (con recarga automática vía Nodemon).
+4. **Ejecutar Pruebas:** `yarn test` (entorno seguro con base de datos de prueba).
 
-Gestión CRUD Completa: Control total sobre Productos, Clientes y Proveedores con validaciones de integridad (Cédulas/RIF únicos).
-
-Lógica de Inventario: Descuento automático de stock mediante operadores atómicos de MongoDB ($inc) para prevenir inconsistencias.
-
-Reportes y Auditoría: Histórico de ventas con desnormalización de datos para garantizar la integridad de precios históricos.
-
-UX Profesional: Feedback interactivo mediante SweetAlert2 y notificaciones tipo Toast para operaciones rápidas.
-
-🧪 Calidad y Pruebas
-El sistema cuenta con una capa de Testing Automatizado que utiliza un entorno de base de datos aislado (sistema-granja-test) para garantizar que las nuevas funcionalidades no afecten los datos reales de producción.
-
-Dato Técnico: El sistema es Local-First, funcionando en una red LAN sin necesidad de conexión a internet, lo que garantiza estabilidad total en entornos rurales.
-
-🚀 Instalación
-Clonar repositorio.
-
-Ejecutar yarn install para reconstruir las dependencias.
-
-Iniciar en desarrollo: yarn dev (vía Nodemon).
-
-Correr pruebas: yarn test (vía Jest con cross-env).
+---
+> **Nota de Ingeniería:** Este sistema es **Local-First**, lo que permite su funcionamiento total en redes LAN sin dependencia de conexión a internet.
